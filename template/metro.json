@@ -1,0 +1,39 @@
+{
+	"order": 2,
+	"version" : 20190125,
+	"index_patterns": [
+		"metro-*"
+	],
+	"aliases": { 
+		"metro" : {} 
+	},
+	"mappings": {
+		"doc": {
+			"properties": {
+				"사용일자": { "type" : "date" },
+				"등록일자": { "type" : "date" },
+				"역ID": { "type" : "long" },
+				"역명": { 
+					"fields" : {
+						"keyword": {
+							"ignore_above" : 512,
+							"type" : "keyword"
+						}
+					},
+					"type" : "text"
+				},
+				"승차총승객수": { "type" : "long" },
+				"하차총승객수": { "type" : "long" },
+				"노선명": { 
+					"fields" : {
+						"keyword": {
+							"ignore_above" : 512,
+							"type" : "keyword"
+						}
+					},
+					"type" : "text"
+				}			
+			}
+		}
+	}	
+}
