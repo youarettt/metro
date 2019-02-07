@@ -1,0 +1,126 @@
+﻿###########
+# 권한조정
+###########
+#1. sudo 권한 부여하기
+sudo vi /etc/sudoers
+추가할 내용 ==>  ubuntu  ALL=(ALL:ALL) ALL
+
+#2. root 그룹 부여하기
+sudo gpasswd -a ubuntu root
+
+#############
+# 도커설치 (Ubuntu)
+#############
+# 1. Setup repository
+sudo apt-get update
+sudo apt-get install apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+# 2. Install Docker CE
+sudo apt-get update
+sudo apt-get install docker-ce
+
+# 3. 특정 유저를 docker 그룹에 추가 (매번 sudo를 안치기 위함)
+sudo usermod -aG docker $(whoami)
+
+###################
+# 도커 Compose 설치
+###################
+# 1. docker-compose 1.23.2 버전 다운받기
+sudo curl -L https://github.com/docker/compose/releases/download/1.23.2/docker-compose-`uname -s `-`uname -m` -o /usr/local/bin/docker-compose
+# 2. docker-compose 실행권한 부여
+sudo chmod +x /usr/local/bin/docker-compose
+
+################
+# ELK Stack 설치
+################
+
+# 1. 메모리 옵션 변경
+sudo sysctl -w vm.max_map_count=262144
+
+# 2. 사전에 정의된 Docker-compose 실행
+###########################################################################
+# ElasticSearch + Kibana
+[docker-compose.yml]
+version: '3'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.5.4
+    container_name: elasticsearch
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    environment:
+      - cluster.name=study-elasticsearch
+      - node.name=main-1
+      - bootstrap.memory_lock=true
+      - xpack.monitoring.enabled=true
+      - "ES_JAVA_OPTS=-Xmx1024m -Xms1024m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - 9200:9200
+    networks:
+      - elasticsearch
+  
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.5.4
+    container_name: kibana    
+    environment:
+      - "elasticsearch.url=http://elasticsearch:9200"
+      - xpack.monitoring.enabled=true
+      - "xpack.monitoring.elasticsearch.url=http://elasticsearch:9200"
+    ports:
+      - 80:5601
+    networks:
+      - elasticsearch
+    links:
+      - elasticsearch
+    depends_on:
+      - elasticsearch
+      
+volumes:
+  esdata:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /home/elk/server/elasticsearch/data
+      
+networks:
+  elasticsearch:
+    driver: bridge
+#####################################################################	  
+# Logstash
+version: '3'
+
+services: 
+  logstash:
+    image: docker.elastic.co/logstash/logstash:6.5.4
+    container_name: logstash
+    volumes:
+      - pipeline:/usr/share/logstash/pipeline/
+    environment:
+      - path.config=/usr/share/logstash/pipeline/metro-2018.conf
+      - "LS_JAVA_OPTS=-Xmx512m -Xms512m"
+      - config.reload.automatic=true
+      - config.reload.interval=60s
+      - xpack.monitoring.enabled=true
+      - "xpack.monitoring.elasticsearch.url=http://elasticsearch:9200"
+      - log.level=debug
+
+volumes:
+  pipeline:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /home/elk/crawler/logstash/pipeline
+      
+networks:
+  default:
+    external:
+      name: server_elasticsearch
